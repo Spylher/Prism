@@ -1,0 +1,95 @@
+﻿using Prism.Application.Common;
+using Prism.Application.Dtos;
+using Prism.Application.Interfaces;
+using Prism.Domain.Entities;
+using Prism.Domain.Exceptions;
+using Prism.Domain.Interfaces;
+namespace Prism.Application.Services;
+
+public class ClientApplicationService : IClientApplicationService
+{
+    private readonly IClientRepository _clientRepo;
+    private readonly ICurrentUser _currentUser;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAccountService _accountService;
+
+    public ClientApplicationService(IClientRepository clientRepo, IAccountService account, ICurrentUser currentUser, IUnitOfWork unitOfWork)
+    {
+        _clientRepo = clientRepo;
+        _currentUser = currentUser;
+        _unitOfWork = unitOfWork;
+        _accountService = account;
+    }
+
+    public async Task<Result> RegisterAsync(RegisterClientRequest req)
+    {
+        var client = new Client(req.FirstName, req.LastName);
+
+        await _clientRepo.AddAsync(client);
+
+        var accountResult = await _accountService.CreateUserAsync(client.Id, $"{client.FirstName} {client.LastName}", req.Email, req.Password);
+
+        if (accountResult.IsSuccess) 
+            return Result.Ok();
+        
+        _clientRepo.Remove(client);
+        return Result.Fail(accountResult.Error ?? "Error on create account.");
+    }
+
+    public async Task<Result> UpdateProfileAsync(UpdateClientRequest request)
+    {
+        var clientId = await _currentUser.GetClientIdAsync();
+        if (clientId is null)
+            return Result.Fail("User not logged.");
+
+        var client = await _clientRepo.GetByIdAsync(clientId.Value);
+        if (client == null)
+            return Result.Fail("User not found.");
+
+        try
+        {
+            client.UpdateName(request.FirstName, request.LastName);
+            client.SetActiveStatus(request.IsActive);
+
+            await _unitOfWork.CommitAsync();
+            return Result.Ok();
+        }
+        catch (DomainException ex)
+        {
+            return Result.Fail(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail($"Fatal Error: {ex.Message}");
+        }
+    }
+
+    public async Task<Result> ChangePasswordAsync(string currentPassword, string newPassword)
+    {
+        var userId = await _currentUser.GetUserIdAsync();
+        if (userId is null)
+            return Result.Fail("User not logged.");
+
+        return await _accountService.ChangePasswordByUserIdAsync(userId.Value, currentPassword, newPassword);
+    }
+
+    public async Task<Result> ResetPasswordAsync(Guid userId, string newPassword)
+    {
+        return await _accountService.ResetPasswordByUserIdAsync(userId, newPassword);
+    }
+
+    public async Task<Result<ClientProfileDto>> GetProfileAsync()
+    {
+        var userResult = await _currentUser.GetUserAsync();
+        if (!userResult.IsSuccess || userResult.Value is null)
+            return Result<ClientProfileDto>.Fail(userResult.Error ?? "User not found.");
+
+        var userReadModel = userResult.Value;
+        var client = await _clientRepo.GetByIdAsync(userReadModel.ClientId);
+        if (client is null)
+            return Result<ClientProfileDto>.Fail("Client not found.");
+
+        return Result<ClientProfileDto>.Ok(ClientProfileDto.FromDomain(userReadModel, client));
+    }
+}
+

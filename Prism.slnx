@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Prism.Application/Prism.Application.csproj" Id="4caf7379-c367-40ff-b06a-39e1e6c1f502" />
+  <Project Path="Prism.Domain/Prism.Domain.csproj" />
+  <Project Path="Prism.Infrastructure/Prism.Infrastructure.csproj" Id="1032ec4a-d4ee-4a0f-9372-16434ffd4a53" />
+</Solution>
