@@ -12,5 +12,9 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
 
         builder.Property(u => u.ClientId)
             .IsRequired();
+
+        builder.Property(u => u.FullName)
+            .HasMaxLength(100)
+            .IsRequired();
     }
 }

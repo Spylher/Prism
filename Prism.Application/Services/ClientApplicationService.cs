@@ -1,5 +1,7 @@
-﻿using Prism.Application.Common;
+﻿using FluentValidation;
+using Prism.Application.Common;
 using Prism.Application.Dtos;
+using Prism.Application.Extensions;
 using Prism.Application.Interfaces;
 using Prism.Domain.Entities;
 using Prism.Domain.Exceptions;
@@ -12,39 +14,45 @@ public class ClientApplicationService : IClientApplicationService
     private readonly ICurrentUser _currentUser;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountService _accountService;
+    private readonly IValidator<RegisterClientRequest> _registerClientValidator;
 
-    public ClientApplicationService(IClientRepository clientRepo, IAccountService account, ICurrentUser currentUser, IUnitOfWork unitOfWork)
+    public ClientApplicationService(IClientRepository clientRepo, IAccountService account, ICurrentUser currentUser, IUnitOfWork unitOfWork, IValidator<RegisterClientRequest> registerClientValidator)
     {
         _clientRepo = clientRepo;
         _currentUser = currentUser;
         _unitOfWork = unitOfWork;
+        _registerClientValidator = registerClientValidator;
         _accountService = account;
     }
 
     public async Task<Result> RegisterAsync(RegisterClientRequest req)
     {
+        var validation = await _registerClientValidator.ValidateAsync(req);
+        if (!validation.IsValid)
+            return validation.ToResult();
+
         var client = new Client(req.FirstName, req.LastName);
 
         await _clientRepo.AddAsync(client);
 
-        var accountResult = await _accountService.CreateUserAsync(client.Id, $"{client.FirstName} {client.LastName}", req.Email, req.Password);
+        var accountResult = await _accountService.CreateUserAsync(client.Id, $"{req.FirstName} {req.LastName}", req.Email, req.Password);
 
         if (accountResult.IsSuccess) 
             return Result.Ok();
         
         _clientRepo.Remove(client);
-        return Result.Fail(accountResult.Error ?? "Error on create account.");
+        return Result.Fail(accountResult.Error ?? "Error on create account.", ErrorCode.Conflict);
     }
 
     public async Task<Result> UpdateProfileAsync(UpdateClientRequest request)
     {
         var clientId = await _currentUser.GetClientIdAsync();
         if (clientId is null)
-            return Result.Fail("User not logged.");
+            return Result.Fail("User not logged.", ErrorCode.Unauthorized);
 
         var client = await _clientRepo.GetByIdAsync(clientId.Value);
         if (client == null)
-            return Result.Fail("User not found.");
+            return Result.Fail("User not found.", ErrorCode.NotFound);
 
         try
         {
@@ -56,11 +64,11 @@ public class ClientApplicationService : IClientApplicationService
         }
         catch (DomainException ex)
         {
-            return Result.Fail(ex.Message);
+            return Result.Fail(ex.Message, ErrorCode.ValidationError);
         }
         catch (Exception ex)
         {
-            return Result.Fail($"Fatal Error: {ex.Message}");
+            return Result.Fail($"Fatal Error: {ex.Message}", ErrorCode.InfrastructureError);
         }
     }
 
@@ -68,7 +76,7 @@ public class ClientApplicationService : IClientApplicationService
     {
         var userId = await _currentUser.GetUserIdAsync();
         if (userId is null)
-            return Result.Fail("User not logged.");
+            return Result.Fail("User not logged.", ErrorCode.Unauthorized);
 
         return await _accountService.ChangePasswordByUserIdAsync(userId.Value, currentPassword, newPassword);
     }
@@ -82,12 +90,12 @@ public class ClientApplicationService : IClientApplicationService
     {
         var userResult = await _currentUser.GetUserAsync();
         if (!userResult.IsSuccess || userResult.Value is null)
-            return Result<ClientProfileDto>.Fail(userResult.Error ?? "User not found.");
+            return Result<ClientProfileDto>.Fail(userResult.Error ?? "User not found.", ErrorCode.NotFound);
 
         var userReadModel = userResult.Value;
         var client = await _clientRepo.GetByIdAsync(userReadModel.ClientId);
         if (client is null)
-            return Result<ClientProfileDto>.Fail("Client not found.");
+            return Result<ClientProfileDto>.Fail("Client not found.", ErrorCode.NotFound);
 
         return Result<ClientProfileDto>.Ok(ClientProfileDto.FromDomain(userReadModel, client));
     }

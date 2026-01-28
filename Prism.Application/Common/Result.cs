@@ -4,17 +4,18 @@
     {
         public bool IsSuccess { get; }
         public string? Error { get; }
+        public ErrorCode ErrorCode { get; }
 
-
-        protected Result(bool isSuccess, string? error = null)
+        protected Result(bool isSuccess, string? error, ErrorCode errorCode)
         {
             IsSuccess = isSuccess;
+            ErrorCode = errorCode;
             Error = error;
         }
 
 
-        public static Result Ok() => new Result(true);
-        public static Result Fail(string error) => new Result(false, error);
+        public static Result Ok() => new Result(true, null, ErrorCode.None);
+        public static Result Fail(string error, ErrorCode errorCode = ErrorCode.Unknown) => new Result(false, error, errorCode);
     }
 
     public class Result<T> : Result
@@ -22,14 +23,14 @@
         public T? Value { get; }
 
 
-        protected Result(bool isSuccess, T? value, string? error = null)
-            : base(isSuccess, error)
+        protected Result(bool isSuccess, T? value, string? error, ErrorCode errorCode)
+            : base(isSuccess, error, errorCode)
         {
             Value = value;
         }
 
 
-        public static Result<T> Ok(T value) => new(true, value);
-        public new static Result<T> Fail(string error) => new(false, default, error);
+        public static Result<T> Ok(T value) => new Result<T>(true, value, null, ErrorCode.None);
+        public new static Result<T> Fail(string error, ErrorCode errorCode = ErrorCode.Unknown) => new Result<T>(false, default, error, errorCode);
     }
 }

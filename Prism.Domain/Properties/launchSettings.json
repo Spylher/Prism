@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Prism.Domain": {
+      "commandName": "Project"
+    }
+  }
+}

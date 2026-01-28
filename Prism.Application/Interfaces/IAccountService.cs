@@ -5,7 +5,7 @@ namespace Prism.Application.Interfaces;
 
 public interface IAccountService
 {
-    Task<Result> CreateUserAsync(Guid clientId, string userName, string email, string password);
+    Task<Result> CreateUserAsync(Guid clientId, string fullName, string email, string password);
     Task<Result> ChangePasswordByUserIdAsync(Guid userId, string currentPassword, string newPassword);
     Task<Result> ResetPasswordByUserIdAsync(Guid userId, string newPassword);
     Task<Result> ResetPasswordByClientIdAsync(Guid clientId, string newPassword);

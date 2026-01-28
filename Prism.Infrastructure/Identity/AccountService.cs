@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Prism.Application.Common;
-using Prism.Application.Dtos;
 using Prism.Application.Interfaces;
 namespace Prism.Infrastructure.Identity;
 
@@ -11,13 +10,22 @@ public class AccountService : IAccountService
 
     public AccountService(UserManager<ApplicationUser> userManager) => _userManager = userManager;
 
-    public async Task<Result> CreateUserAsync(Guid clientId, string userName, string email, string password)
+    public async Task<Result> CreateUserAsync(Guid clientId, string fullName, string email, string password)
     {
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing != null)
+            return Result.Fail("Email already registered.", ErrorCode.EmailAlreadyInUse);
+
         var appUser = new ApplicationUser
         {
+            Id = Guid.NewGuid(),
             ClientId = clientId,
-            UserName = userName,
-            Email = email
+            UserName = email,
+            FullName = fullName,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            //EmailConfirmed = false // if you want for email confirmation
         };
 
         var res = await _userManager.CreateAsync(appUser, password);
@@ -32,7 +40,7 @@ public class AccountService : IAccountService
         var user = await _userManager.Users.SingleOrDefaultAsync(u => u.ClientId == clientId);
 
         if (user == null)
-            return Result.Fail("User not found.");
+            return Result.Fail("User not found.", ErrorCode.NotFound);
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var identityResult = await _userManager.ResetPasswordAsync(user, token, newPassword);
@@ -45,7 +53,7 @@ public class AccountService : IAccountService
         var appUser = await _userManager.FindByIdAsync(userId.ToString());
 
         if (appUser == null)
-            return Result.Fail("User not found.");
+            return Result.Fail("User not found.", ErrorCode.NotFound);
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(appUser);
         var identityResult = await _userManager.ResetPasswordAsync(appUser, token, newPassword);
@@ -58,7 +66,7 @@ public class AccountService : IAccountService
         var appUser = await _userManager.FindByIdAsync(userId.ToString());
 
         if (appUser == null)
-            return Result.Fail("User not found.");
+            return Result.Fail("User not found.", ErrorCode.NotFound);
 
         var identityResult = await _userManager.ChangePasswordAsync(appUser, currentPassword, newPassword);
 
