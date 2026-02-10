@@ -15,14 +15,32 @@ public class ClientApplicationService : IClientApplicationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccountService _accountService;
     private readonly IValidator<RegisterClientRequest> _registerClientValidator;
+    private readonly IValidator<LoginClientRequest> _loginClientValidator;
 
-    public ClientApplicationService(IClientRepository clientRepo, IAccountService account, ICurrentUser currentUser, IUnitOfWork unitOfWork, IValidator<RegisterClientRequest> registerClientValidator)
+    public ClientApplicationService(IClientRepository clientRepo, IAccountService account, ICurrentUser currentUser, IUnitOfWork unitOfWork, IValidator<RegisterClientRequest> registerClientValidator, IValidator<LoginClientRequest> loginClientValidator)
     {
         _clientRepo = clientRepo;
         _currentUser = currentUser;
         _unitOfWork = unitOfWork;
         _registerClientValidator = registerClientValidator;
+        _loginClientValidator = loginClientValidator;
         _accountService = account;
+    }
+
+    public async Task<Result> LogoutAsync() => await _accountService.SignOutAsync();
+
+    public async Task<Result> LoginAsync(LoginClientRequest req)
+    {
+        var validation = await _loginClientValidator.ValidateAsync(req);
+        if (!validation.IsValid)
+            return validation.ToResult();
+
+        var result = await _accountService.SignInAsync(req.Email, req.Password, req.RememberMe);
+
+        if (result.IsSuccess)
+            return Result.Ok();
+
+        return Result.Fail(result.Error ?? "Invalid credentials.", ErrorCode.Unauthorized);
     }
 
     public async Task<Result> RegisterAsync(RegisterClientRequest req)
@@ -36,14 +54,14 @@ public class ClientApplicationService : IClientApplicationService
         await _clientRepo.AddAsync(client);
 
         var accountResult = await _accountService.CreateUserAsync(client.Id, $"{req.FirstName} {req.LastName}", req.Email, req.Password);
-
+        
         if (accountResult.IsSuccess) 
             return Result.Ok();
         
         _clientRepo.Remove(client);
         return Result.Fail(accountResult.Error ?? "Error on create account.", ErrorCode.Conflict);
     }
-
+    
     public async Task<Result> UpdateProfileAsync(UpdateClientRequest request)
     {
         var clientId = await _currentUser.GetClientIdAsync();

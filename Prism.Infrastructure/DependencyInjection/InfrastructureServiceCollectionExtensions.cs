@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
-//using Microsoft.Data.Sqlite;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +40,21 @@ public static class InfrastructureServiceCollectionExtensions
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
+        // configure o cookie do Identity explicitamente
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.Name = ".Prism.Identity.Application";
+
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.Path = "/";
+
+            options.ExpireTimeSpan = TimeSpan.FromDays(3);
+            options.SlidingExpiration = true;
+        });
+
+        // Identity options configuration (alternative to the one in AddIdentity)
         //services.Configure<IdentityOptions>(options =>
         //{
         //    options.Password.RequireDigit = true;

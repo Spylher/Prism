@@ -1,6 +1,4 @@
-﻿using System.Linq.Expressions;
-using System.Security.Cryptography.X509Certificates;
-using FluentValidation;
+﻿using FluentValidation;
 using Prism.Application.Common;
 using Prism.Application.Dtos;
 namespace Prism.Application.Validators;

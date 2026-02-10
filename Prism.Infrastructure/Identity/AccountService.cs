@@ -7,8 +7,36 @@ namespace Prism.Infrastructure.Identity;
 public class AccountService : IAccountService
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
 
-    public AccountService(UserManager<ApplicationUser> userManager) => _userManager = userManager;
+    public AccountService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+    {
+        _userManager = userManager;
+        _signInManager = signInManager;
+    }
+
+    public async Task<Result> SignInAsync(string email, string password, bool rememberMe)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return Result.Fail("Invalid credentials.", ErrorCode.Unauthorized);
+
+        var signInResult = await _signInManager.PasswordSignInAsync(user, password, rememberMe, lockoutOnFailure: true);
+
+        if (signInResult.Succeeded)
+            return Result.Ok();
+
+        if (signInResult.IsLockedOut)
+            return Result.Fail("User is locked out.", ErrorCode.Forbidden);
+
+        return Result.Fail("Invalid credentials.", ErrorCode.Unauthorized);
+    }
+
+    public async Task<Result> SignOutAsync()
+    {
+        await _signInManager.SignOutAsync();
+        return Result.Ok();
+    }
 
     public async Task<Result> CreateUserAsync(Guid clientId, string fullName, string email, string password)
     {

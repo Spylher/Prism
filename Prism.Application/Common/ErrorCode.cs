@@ -6,7 +6,7 @@ public enum ErrorCode : uint
     NotFound = 404,
 
     // Auth
-    Unauthorized = 1000,
+    Unauthorized = 401,
     Forbidden = 1001,
     InvalidCredentials = 1002,
     PasswordTooWeak = 1003,

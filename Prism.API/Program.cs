@@ -45,6 +45,9 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+
+        // important for cookie auth, must be before UseAuthorization
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllers();

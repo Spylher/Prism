@@ -4,6 +4,8 @@ namespace Prism.Application.Interfaces;
 
 public interface IClientApplicationService
 {
+    Task<Result> LogoutAsync();
+    Task<Result> LoginAsync(LoginClientRequest clientRequest);
     Task<Result> RegisterAsync(RegisterClientRequest request);
     Task<Result> UpdateProfileAsync(UpdateClientRequest request);
     Task<Result> ChangePasswordAsync(string currentPassword, string newPassword);
