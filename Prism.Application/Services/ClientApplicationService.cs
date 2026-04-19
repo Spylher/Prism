@@ -114,7 +114,7 @@ public class ClientApplicationService : IClientApplicationService
         var client = await _clientRepo.GetByIdAsync(userReadModel.ClientId);
         if (client is null)
             return Result<ClientProfileDto>.Fail("Client not found.", ErrorCode.NotFound);
-
+        
         return Result<ClientProfileDto>.Ok(ClientProfileDto.FromDomain(userReadModel, client));
     }
 }

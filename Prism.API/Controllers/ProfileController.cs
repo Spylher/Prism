@@ -15,25 +15,25 @@ public class ProfileController : BaseApiController
         _clientService = service;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<ClientProfileDto>> GetProfile()
-    {
-        var result = await _clientService.GetProfileAsync();
-        return FromResult(result);
-    }
+    //[HttpGet]
+    //public async Task<ActionResult<ClientProfileDto>> GetProfile()
+    //{
+    //    var result = await _clientService.GetProfileAsync();
+    //    return FromResult(result);
+    //}
 
-    [HttpPut]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateClientRequest request)
-    {
-        var result = await _clientService.UpdateProfileAsync(request);
-        return FromResult(result);
-    }
+    //[HttpPut]
+    //public async Task<IActionResult> UpdateProfile([FromBody] UpdateClientRequest request)
+    //{
+    //    var result = await _clientService.UpdateProfileAsync(request);
+    //    return FromResult(result);
+    //}
 
-    [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest dto)
-    {
-        var result = await _clientService.ChangePasswordAsync(dto.CurrentPassword, dto.NewPassword);
-        return FromResult(result);
-    }
+    //[HttpPost("change-password")]
+    //public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest dto)
+    //{
+    //    var result = await _clientService.ChangePasswordAsync(dto.CurrentPassword, dto.NewPassword);
+    //    return FromResult(result);
+    //}
 }
 

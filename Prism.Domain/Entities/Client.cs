@@ -1,4 +1,6 @@
 ﻿using Prism.Domain.Exceptions;
+using Prism.Domain.Interfaces;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Prism.Domain.Entities;
 
@@ -9,6 +11,7 @@ public class Client
     public string LastName { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public DateTime ExpiresAt { get; private set; }
 
     protected Client() { }
 
@@ -18,6 +21,21 @@ public class Client
         UpdateName(firstName, lastName);
         IsActive = true;
         CreatedAt = DateTime.UtcNow;
+        ExpiresAt = DateTime.UtcNow.AddDays(3);
+    }
+
+    public bool IsExpired() => DateTime.UtcNow > ExpiresAt;
+
+    public bool AddDaysToExpiration(int days)
+    {
+        if (days <= 0)
+            throw new DomainException("Days must be greater than zero.");
+
+        ExpiresAt = ExpiresAt.AddDays(days);
+        //if (this.ExpiresAt > DateTime.UtcNow.AddYears(5))
+        //    return erro
+
+        return true;
     }
 
     public void UpdateName(string firstName, string lastName)

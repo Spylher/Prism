@@ -15,12 +15,10 @@ public class AdminClientsController : BaseApiController
         _clientService = clientService;
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("{userId:guid}/reset-password")]
     public async Task<IActionResult> ResetPassword(Guid userId, [FromBody] ResetPasswordRequest dto)
     {
-        //if (!ModelState.IsValid)
-        //    return BadRequest(ModelState);
-
         var result = await _clientService.ResetPasswordAsync(userId, dto.NewPassword);
         return FromResult(result);
     }

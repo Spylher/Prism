@@ -1,18 +1,23 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Prism.Application.Common;
+using Prism.Application.Dtos;
 using Prism.Application.Interfaces;
+using Prism.Domain.Interfaces;
 namespace Prism.Infrastructure.Identity;
 
 public class AccountService : IAccountService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly IClientRepository _clientRepository;
 
-    public AccountService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+
+    public AccountService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IClientRepository clientRepository)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _clientRepository = clientRepository;
     }
 
     public async Task<Result> SignInAsync(string email, string password, bool rememberMe)
@@ -44,6 +49,8 @@ public class AccountService : IAccountService
         if (existing != null)
             return Result.Fail("Email already registered.", ErrorCode.EmailAlreadyInUse);
 
+        const string clientRole = "Client";
+
         var appUser = new ApplicationUser
         {
             Id = Guid.NewGuid(),
@@ -57,6 +64,7 @@ public class AccountService : IAccountService
         };
 
         var res = await _userManager.CreateAsync(appUser, password);
+        await _userManager.AddToRoleAsync(appUser, clientRole);
 
         return res.Succeeded
             ? Result.Ok()
@@ -107,4 +115,58 @@ public class AccountService : IAccountService
         return Result.Fail(identityResult.Errors.FirstOrDefault()?.Description ?? "Error on change password.");
     }
 
+
+    public async Task<Result<ApplicationUserDto>> FindByEmailAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+            return Result<ApplicationUserDto>.Fail("User not found.", ErrorCode.NotFound);
+
+        return Result<ApplicationUserDto>.Ok(ToDto(user));
+    }
+
+    public async Task<Result<ApplicationUserDto>> FindByClientIdAsync(Guid clientId)
+    {
+        var user = await _userManager.Users.SingleOrDefaultAsync(u => u.ClientId == clientId);
+        if (user is null)
+            return Result<ApplicationUserDto>.Fail("User not found.", ErrorCode.NotFound);
+
+        return Result<ApplicationUserDto>.Ok(ToDto(user));
+    }
+
+    public async Task<bool> CheckPasswordAsync(ApplicationUserDto dto, string password)
+    {
+        var user = await _userManager.FindByIdAsync(dto.Id.ToString());
+        if (user is null)
+            return false;
+
+        return await _userManager.CheckPasswordAsync(user, password);
+    }
+
+    public async Task<IList<string>> GetRolesAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+
+        if (user == null)
+            return new List<string>();
+
+        return await _userManager.GetRolesAsync(user);
+    }
+
+    public async Task<List<UserResponse>> GetAllUsersAsync()
+    {
+        var users = _userManager.Users.ToList();
+        var result = new List<UserResponse>();
+
+        foreach (var user in users)
+        {
+            var client = await _clientRepository.GetByIdAsync(user.ClientId);
+            var roles = await _userManager.GetRolesAsync(user);
+            result.Add(new UserResponse(user.Id, user.Email!, user.FullName, client.Id, client.ExpiresAt, roles));
+        }
+
+        return result;
+    }
+
+    private static ApplicationUserDto ToDto(ApplicationUser user) => new(user.Id, user.ClientId, user.FullName, user.Email!);
 }

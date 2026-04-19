@@ -1,3 +1,9 @@
 ﻿namespace Prism.Application.Dtos;
 
-public record LoginClientRequest(string Email, string Password, bool RememberMe);
+public record LoginClientRequest(
+    string Email, 
+    string Password, 
+    string DeviceFingerprint, 
+    string DeviceName, 
+    bool RememberMe = true
+);

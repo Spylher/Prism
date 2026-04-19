@@ -1,12 +1,15 @@
 using FluentValidation;
 using Prism.Application.DependencyInjection;
+using Prism.Application.UseCases.Auth;
 using Prism.Application.Validators;
 using Prism.Infrastructure.DependencyInjection;
+//using Microsoft.OpenApi.Models;
+
 namespace Prism.API;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -25,9 +28,20 @@ public class Program
         builder.Services.AddApplication();
         
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-        builder.Services.AddOpenApi();
+        //builder.Services.AddOpenApi();
 
         var app = builder.Build();
+
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+        });
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            await SeedData.SeedAdminAsync(services);
+        }
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
