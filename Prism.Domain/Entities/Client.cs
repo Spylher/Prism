@@ -1,14 +1,14 @@
-﻿using Prism.Domain.Exceptions;
-using Prism.Domain.Interfaces;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿using Prism.Domain.Common;
+using Prism.Domain.Exceptions;
 
 namespace Prism.Domain.Entities;
 
 public class Client
 {
     public Guid Id { get; private set; }
-    public string FirstName { get; private set; }
-    public string LastName { get; private set; }
+    public string FirstName { get; private set; } = string.Empty;
+    public string LastName { get; private set; } = string.Empty;
+    public ClientLevel Level { get; set; } = ClientLevel.User;
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
@@ -28,8 +28,15 @@ public class Client
 
     public bool AddDaysToExpiration(int days)
     {
-        if (days <= 0)
-            throw new DomainException("Days must be greater than zero.");
+        //if (days == 0)
+        //    throw new DomainException("Days cannot be zero.");
+
+        if (ExpiresAt <= DateTime.UtcNow && days > 0)
+        {
+            ExpiresAt = DateTime.UtcNow.AddDays(days);
+            return true;
+        }
+
 
         ExpiresAt = ExpiresAt.AddDays(days);
         //if (this.ExpiresAt > DateTime.UtcNow.AddYears(5))

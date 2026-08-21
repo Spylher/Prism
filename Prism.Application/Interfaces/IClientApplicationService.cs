@@ -11,4 +11,5 @@ public interface IClientApplicationService
     Task<Result> ChangePasswordAsync(string currentPassword, string newPassword);
     Task<Result> ResetPasswordAsync(Guid userId, string newPassword);
     Task<Result<ClientProfileDto>> GetProfileAsync();
+    Task<Result<ClientDto>> GetByIdAsync(Guid clientId);
 }

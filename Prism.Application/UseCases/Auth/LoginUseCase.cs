@@ -16,6 +16,7 @@ public class LoginUseCase
     private readonly ITokenHashService _hashService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentRequest _currentRequest;
+    private readonly string _internalHeaderDiscord;
     public LoginUseCase(IAccountService accountService, ISessionRepository sessionRepo,
         ITokenService tokenService, IUnitOfWork unitOfWork, ITokenHashService hashService, IClientRepository clientRepo, ICurrentRequest currentRequest)
     {
@@ -26,8 +27,9 @@ public class LoginUseCase
         _hashService = hashService;
         _clientRepo = clientRepo;
         _currentRequest = currentRequest;
+        _internalHeaderDiscord = Environment.GetEnvironmentVariable("INTERNAL_DISCORD_HEADER") ?? "";
     }
-
+    
     public async Task<Result<LoginClientResponse>> ExecuteAsync(LoginClientRequest req)
     {
         // 1. Valida credenciais via Identity
@@ -47,9 +49,24 @@ public class LoginUseCase
             return Result<LoginClientResponse>.Fail("Client not found.", ErrorCode.Unauthorized);
 
         // 2. Revoga sessões ativas anteriores do mesmo client (1 sessão por vez)
+        //var activeSessions = await _sessionRepo.GetActiveByClientIdAsync(user.ClientId);
+        //foreach (var s in activeSessions)
+        //    s.Revoke(SessionRevocationReason.ReplacedByNewLogin);
+
         var activeSessions = await _sessionRepo.GetActiveByClientIdAsync(user.ClientId);
-        foreach (var s in activeSessions)
-            s.Revoke(SessionRevocationReason.ReplacedByNewLogin);
+
+        var internalKey = _currentRequest.GetHeader("X-Internal-Key") ?? "";
+        var isDiscordLogin = internalKey == _internalHeaderDiscord && !string.IsNullOrEmpty(internalKey);
+
+        foreach (var activeSession in activeSessions)
+        {
+            var isDiscordSession = activeSession.IsDiscordSession(_internalHeaderDiscord);
+
+            if (isDiscordLogin != isDiscordSession)
+                continue;
+
+            activeSession.Revoke(SessionRevocationReason.ReplacedByNewLogin);
+        }
 
         // 3. Gera tokens
         var roles = await _accountService.GetRolesAsync(user.Id);
@@ -62,13 +79,11 @@ public class LoginUseCase
         // 4. Cria e persiste a sessão
         var ipAddress = _currentRequest.GetIpAddress();
         var session = new Session(user.ClientId, accessToken, refreshTokenHash,
-                                  req.DeviceFingerprint, req.DeviceName, ipAddress, expiresAt);
+                                  req.DeviceFingerprint, req.DeviceName, req.WindowsUser, req.MacAddress, ipAddress, expiresAt);
 
         await _sessionRepo.AddAsync(session);
         await _unitOfWork.CommitAsync();
 
-        return Result<LoginClientResponse>.Ok(
-            new LoginClientResponse(accessToken, refreshToken, expiresAt, user.FullName)
-        );
+        return Result<LoginClientResponse>.Ok(new LoginClientResponse(accessToken, refreshToken, expiresAt, user.FullName));
     }
 }

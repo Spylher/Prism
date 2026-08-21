@@ -64,6 +64,10 @@ public class AccountService : IAccountService
         };
 
         var res = await _userManager.CreateAsync(appUser, password);
+
+        if (!res.Succeeded)
+            return Result.Fail(res.Errors.FirstOrDefault()?.Description ?? "Error on create user.");
+
         await _userManager.AddToRoleAsync(appUser, clientRole);
 
         return res.Succeeded

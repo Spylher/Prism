@@ -8,18 +8,18 @@ namespace Prism.API.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminClientsController : BaseApiController
 {
-    private readonly IClientApplicationService _clientService;
+    //private readonly IClientApplicationService _clientService;
 
-    public AdminClientsController(IClientApplicationService clientService)
-    {
-        _clientService = clientService;
-    }
+    //public AdminClientsController(IClientApplicationService clientService)
+    //{
+    //    _clientService = clientService;
+    //}
 
-    [Authorize(Roles = "Admin")]
-    [HttpPost("{userId:guid}/reset-password")]
-    public async Task<IActionResult> ResetPassword(Guid userId, [FromBody] ResetPasswordRequest dto)
-    {
-        var result = await _clientService.ResetPasswordAsync(userId, dto.NewPassword);
-        return FromResult(result);
-    }
+    //[Authorize(Roles = "Admin")]
+    //[HttpPost("{userId:guid}/reset-password")]
+    //public async Task<IActionResult> ResetPassword(Guid userId, [FromBody] ResetPasswordRequest dto)
+    //{
+    //    var result = await _clientService.ResetPasswordAsync(userId, dto.NewPassword);
+    //    return FromResult(result);
+    //}
 }

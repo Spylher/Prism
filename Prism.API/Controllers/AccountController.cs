@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Prism.Application.Dtos;
@@ -9,55 +9,27 @@ namespace Prism.API.Controllers;
 [Route("api/[controller]")]
 public class AccountController : BaseApiController
 {
-    private readonly IClientApplicationService _clientService;
     private readonly LoginUseCase _loginUseCase;
-    private readonly AddDaysToClientUseCase _addDaysToClientUseCase;
+    private readonly SyncAppProfilesUseCase _syncAppProfilesUseCase;
+    private readonly UpdateAppProfileDataUseCase _updateAppProfileDataUseCase;
+    private readonly GetAppProfilesUseCase _getAppProfilesUseCase;
+    private readonly GetAppProfileDataUseCase _getAppProfileDataUseCase;
     private readonly RefreshTokenUseCase _refreshTokenUseCase;
-    private readonly IValidator<LoginClientRequest> _loginValidator;
+    private readonly IClientApplicationService _clientService;
     private readonly IAccountService _accountService;
     private readonly ISessionApplicationService _sessionService;
 
-    public AccountController(IClientApplicationService clientService, LoginUseCase loginUseCase, RefreshTokenUseCase refreshTokenUseCase, IValidator<LoginClientRequest> loginValidator, IAccountService accountService, AddDaysToClientUseCase addDaysToClientUseCase, ISessionApplicationService sessionService)
+    public AccountController(IClientApplicationService clientService, LoginUseCase loginUseCase, RefreshTokenUseCase refreshTokenUseCase, IAccountService accountService, ISessionApplicationService sessionService, SyncAppProfilesUseCase syncAppProfilesUseCase, UpdateAppProfileDataUseCase updateAppProfileDataUseCase, GetAppProfilesUseCase getAppProfilesUseCase, GetAppProfileDataUseCase getAppProfileDataUseCase)
     {
         _clientService = clientService;
         _loginUseCase = loginUseCase;
         _refreshTokenUseCase = refreshTokenUseCase;
-        _loginValidator = loginValidator;
         _accountService = accountService;
-        _addDaysToClientUseCase = addDaysToClientUseCase;
         _sessionService = sessionService;
-    }
-
-    [Authorize(Roles = "Admin")]
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterClientRequest request)
-    {
-        var result = await _clientService.RegisterAsync(request);
-        return FromResult(result);
-    }
-
-
-    // cookie-based authentication endpoints (commented out for now, as we're using JWTs instead)
-    //[HttpPost("login")]
-    //public async Task<IActionResult> Login([FromBody] LoginClientRequest clientRequest)
-    //{
-    //    var result = await _clientService.LoginAsync(clientRequest);
-    //    return FromResult(result);
-    //}
-    //[HttpPost("logout")]
-    //[Authorize]
-    //public async Task<IActionResult> Logout()
-    //{
-    //    var result = await _clientService.LogoutAsync();
-    //    return FromResult(result);
-    //}
-
-    [HttpPost("{clientId:guid}/add-days")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AddDays(Guid clientId, [FromBody] AddDaysRequest request)
-    {
-        var result = await _addDaysToClientUseCase.ExecuteAsync(clientId, request.Days);
-        return FromResult(result);
+        _syncAppProfilesUseCase = syncAppProfilesUseCase;
+        _updateAppProfileDataUseCase = updateAppProfileDataUseCase;
+        _getAppProfilesUseCase = getAppProfilesUseCase;
+        _getAppProfileDataUseCase = getAppProfileDataUseCase;
     }
 
     [HttpPost("login")]
@@ -82,33 +54,123 @@ public class AccountController : BaseApiController
         return FromResult(result);
     }
 
-    [HttpGet("users")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAllUsers()
-    {
-        var users = await _accountService.GetAllUsersAsync();
-        return Ok(users);
-    }
-
-    [HttpGet("sessions")]
+    [HttpGet("sessions/me")]
     [Authorize]
     public async Task<IActionResult> GetMySessions()
     {
-        var clientId = Guid.Parse(User.FindFirst("client_id")!.Value);
+        var clientIdClaim = User.FindFirst("client_id");
 
-        var sessions = await _sessionService.GetSessionsByClientIdAsync(clientId);
+        if (clientIdClaim == null || !Guid.TryParse(clientIdClaim.Value, out var clientId))
+            return Unauthorized();
+
+        var sessions =
+            await _sessionService.GetSessionsByClientIdAsync(clientId);
 
         return Ok(sessions);
     }
 
-    [HttpGet("me")]
-    [Authorize(Roles = "Admin")]
-    public IActionResult Me()
+    [HttpGet("app-profiles")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<AppProfileResponse>>> GetAppProfiles()
     {
-        return Ok(new
+        var clientIdClaim = User.FindFirst("client_id");
+
+        if (clientIdClaim == null || !Guid.TryParse(clientIdClaim.Value, out var clientId))
+            return Unauthorized();
+
+        var result = await _getAppProfilesUseCase.ExecuteAsync(clientId);
+        return Ok(result);
+    }
+
+    [HttpGet("app-profiles/{profileId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<AppProfileResponse>> GetAppProfilesById(Guid profileId)
+    {
+        var clientIdClaim = User.FindFirst("client_id");
+
+        if (clientIdClaim == null || !Guid.TryParse(clientIdClaim.Value, out var clientId))
+            return Unauthorized();
+
+        var result = await _getAppProfileDataUseCase.ExecuteAsync(clientId, profileId);
+        return FromResult(result);
+    }
+
+
+    [HttpPut("app-profiles/sync")]
+    [Authorize]
+    public async Task<IActionResult> SyncAppProfiles([FromBody] SyncProfilesRequest syncProfilesRequest)
+    {
+        var clientIdClaim = User.FindFirst("client_id");
+
+        if (clientIdClaim == null || !Guid.TryParse(clientIdClaim.Value, out var clientId))
+            return Unauthorized();
+
+        var result = await _syncAppProfilesUseCase.ExecuteAsync(clientId, syncProfilesRequest);
+
+        return Ok(result);
+    }
+
+    [HttpPatch("app-profiles")]
+    [Authorize]
+    public async Task<IActionResult> UpdateAppProfileData([FromBody] UpdateAppProfileDataRequest req)
+    {
+        var clientIdClaim = User.FindFirst("client_id");
+
+        if (clientIdClaim == null || !Guid.TryParse(clientIdClaim.Value, out var clientId))
+            return Unauthorized();
+
+        var result = await _updateAppProfileDataUseCase.ExecuteAsync(clientId, req);
+
+        return FromResult(result);
+        //return Ok(result);
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<MeResponse>> Me()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return Unauthorized();
+
+        var userResult = await _accountService.FindByEmailAsync(email);
+
+        if (!userResult.IsSuccess || userResult.Value is null)
+            return NotFound();
+
+        var user = userResult.Value;
+
+        var clientResult = await _clientService.GetByIdAsync(user.ClientId);
+
+        if (!clientResult.IsSuccess || clientResult.Value is null)
+            return NotFound();
+
+        var client = clientResult.Value;
+
+        var roles =
+            await _accountService.GetRolesAsync(user.Id);
+
+        var remainingDays = Math.Max(0, (client.ExpiresAt - DateTime.UtcNow).Days);
+
+        var response = new MeResponse
         {
-            User.Identity?.Name,
-            Claims = User.Claims.Select(c => new { c.Type, c.Value })
-        });
+            Id = user.Id,
+            ClientId = user.ClientId,
+
+            FullName = user.FullName,
+            Email = user.Email,
+
+            Roles = roles,
+
+            License = new LicenseInfoResponse
+            {
+                ExpiresAt = client.ExpiresAt,
+                IsExpired = client.ExpiresAt <= DateTime.UtcNow,
+                RemainingDays = remainingDays
+            }
+        };
+
+        return Ok(response);
     }
 }

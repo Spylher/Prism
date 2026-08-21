@@ -117,5 +117,19 @@ public class ClientApplicationService : IClientApplicationService
         
         return Result<ClientProfileDto>.Ok(ClientProfileDto.FromDomain(userReadModel, client));
     }
+
+    public async Task<Result<ClientDto>> GetByIdAsync(Guid clientId)
+    {
+        var client = await _clientRepo.GetByIdAsync(clientId);
+
+        if (client == null)
+            return Result<ClientDto>.Fail("Client not found.", ErrorCode.NotFound);
+
+        return Result<ClientDto>.Ok(new ClientDto
+        {
+            Id = client.Id,
+            ExpiresAt = client.ExpiresAt
+        });
+    }
 }
 

@@ -25,4 +25,12 @@ public class CurrentRequest : ICurrentRequest
 
         return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
+
+    public string? GetHeader(string key)
+    {
+        return _httpContextAccessor.HttpContext?
+            .Request
+            .Headers[key]
+            .FirstOrDefault();
+    }
 }

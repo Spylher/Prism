@@ -12,9 +12,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     }
 
     public DbSet<Client> Clients => Set<Client>();
-
     public DbSet<Session> Sessions => Set<Session>();
-
+    public DbSet<PlayerTag> PlayerTags => Set<PlayerTag>();
+    public DbSet<DiscordProfile> DiscordProfiles => Set<DiscordProfile>();
+    public DbSet<AppProfile> AppProfiles => Set<AppProfile>();
+    
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

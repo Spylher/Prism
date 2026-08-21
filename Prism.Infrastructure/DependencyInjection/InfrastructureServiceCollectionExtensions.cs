@@ -68,6 +68,24 @@ public static class InfrastructureServiceCollectionExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
                 };
+
+                // vey beautiful
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/minimap"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         services.AddOptions<JwtSettings>()
@@ -124,6 +142,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ITokenHashService, TokenHashService>();
         services.AddScoped<ICurrentRequest, CurrentRequest>();
+        services.AddScoped<IPlayerTagRepository, PlayerTagRepository>();
+        services.AddScoped<IDiscordProfileRepository, DiscordProfileRepository>();
+        services.AddScoped<IAppProfileRepository, AppProfileRepository>();
+
         return services;
     }
 }

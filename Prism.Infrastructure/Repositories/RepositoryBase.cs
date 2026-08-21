@@ -39,6 +39,14 @@ public abstract class RepositoryBase<TEntity> : IRepositoryBase<TEntity> where T
         _dbSet.Remove(obj);
     }
 
+    public void RemoveRange(IEnumerable<TEntity> entities)
+    {
+        if (entities == null)
+            throw new ArgumentNullException(nameof(entities));
+
+        _dbSet.RemoveRange(entities);
+    }
+
     public async Task<TEntity?> GetByIdAsync(Guid id)
     {
         return await _dbSet.FindAsync(id);

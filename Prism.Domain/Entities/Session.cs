@@ -16,12 +16,16 @@ public class Session
     public SessionRevocationReason? RevocationReason { get; private set; }
     public bool IsActive => RevokedAt is null && DateTime.UtcNow < ExpiresAt;
     public string IpAddress { get; private set; }
+    public string WindowsUser { get; private set; }
+    public string MacAddress { get; private set; }
     public string? LastIpAddress { get; private set; }
     protected Session() { }
 
     public Session(Guid clientId, string accessToken, string refreshTokenHash,
-        string deviceFingerprint, string deviceName, string ipAddress, DateTime expiresAt)
+        string deviceFingerprint, string deviceName, string windowsUser, string macAddress, string ipAddress, DateTime expiresAt)
     {
+        WindowsUser = windowsUser;
+        MacAddress = macAddress;
         Id = Guid.NewGuid();
         ClientId = clientId;
         AccessToken = accessToken;
@@ -34,6 +38,8 @@ public class Session
     }
 
     public void UpdateLastIp(string ip) => LastIpAddress = ip;
+
+    public bool IsDiscordSession(string discordKey) => discordKey == DeviceFingerprint;
 
     public void Revoke(SessionRevocationReason reason)
     {
